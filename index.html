@@ -1,0 +1,726 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICS Service Board</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-700: #374151;
+            --shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--gray-100);
+            color: var(--gray-700);
+            line-height: 1.5;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 24px;
+            padding: 24px;
+            height: 100vh;
+        }
+
+        .officers-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+            padding: 20px;
+            border: 1px solid var(--gray-200);
+            overflow-y: auto;
+            max-height: calc(100vh - 48px);
+            width: 340px;
+        }
+
+        .panel-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--gray-700);
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .officer-group {
+            margin-bottom: 16px;
+        }
+
+        .group-header {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            background: var(--gray-100);
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 600;
+        }
+
+        .group-header:hover {
+            background: var(--gray-200);
+        }
+
+        .group-header::before {
+            content: '▼';
+            margin-right: 8px;
+            transition: transform 0.2s;
+        }
+
+        .group-header.collapsed::before {
+            transform: rotate(-90deg);
+        }
+
+        .officer-cards {
+            padding: 8px 0;
+            transition: max-height 0.3s ease-out;
+            overflow: hidden;
+        }
+
+        .collapsed + .officer-cards {
+            max-height: 0;
+            padding: 0;
+        }
+
+        .officer-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            padding: 12px;
+            margin: 8px 0;
+            cursor: move;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .officer-card:hover {
+            border-color: var(--primary);
+        }
+
+        .officer-info {
+            margin-top: -4px;
+            display: grid;
+            grid-template-columns: 60px 1fr;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .officer-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .officer-details h3 {
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+        }
+
+        .officer-details p {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .officer-details {
+            padding-right: 20px;
+        }
+
+        .contact-info {
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #666;
+            display: grid;
+            gap: 4px;
+        }
+
+        .contact-info span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .timer {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            font-size: 0.8rem;
+            color: var(--gray-700);
+            font-weight: 500;
+            background: var(--gray-100);
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .dismiss-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #666;
+            display: none;
+        }
+
+        .lane-content .officer-card:hover .dismiss-btn {
+            display: block;
+        }
+
+        .dismiss-btn:hover {
+            color: #ff4444;
+        }
+
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            height: 100%;
+            overflow-x: auto;
+        }
+
+        .kanban-lane {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: var(--shadow);
+            min-width: 280px;
+            max-width: 320px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 48px);
+            overflow-y: hidden;
+        }
+
+        .lane-header {
+            font-weight: 700;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--gray-200);
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+
+        .lane-content {
+            min-height: 200px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .ghost-card {
+            opacity: 0.5;
+            background: var(--gray-200);
+        }
+
+        .task-count {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 12px;
+            color: white;
+            background: #22c55e;
+        }
+
+        .task-count.red {
+            background: #ef4444;
+        }
+
+        .task-count.yellow {
+            background: #f59e0b;
+        }
+
+        .task-count.green {
+            background: #22c55e;
+        }
+
+        /* Only show task count on cards in the officers-panel */
+        .lane-content .officer-card .task-count {
+            display: none;
+        }
+
+        .officers-panel .officer-card .task-count {
+            display: block;
+        }
+
+        .swimlane-group {
+            margin-bottom: 16px;
+        }
+
+        .swimlane-header {
+            padding: 0;
+            background: var(--gray-100);
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
+
+        .swimlane-header::before {
+            content: '▼';
+            margin: 0 8px;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        .swimlane-header.collapsed::before {
+            transform: rotate(-90deg);
+        }
+
+        .swimlane-content {
+            transition: height 0.3s ease-out;
+            overflow: hidden;
+            height: auto;
+        }
+
+        .swimlane-content.collapsed {
+            height: 0;
+        }
+
+        .swimlane-drop-zone {
+            flex: 1;
+            min-height: 30px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="officers-panel">
+            <div class="panel-title">Unified Command</div>
+            <div class="officer-group">
+                <div class="group-header">Public Information Officer</div>
+                <div class="officer-cards">
+                    <div class="officer-card" draggable="true">
+                        <div class="officer-info">
+                            <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop" class="officer-avatar">
+                            <div class="officer-details">
+                                <h3>Kai Yamamoto</h3>
+                                <p>PIO Lead</p>
+                                <div class="contact-info">
+                                    <span>📞 (312) 555-0123</span>
+                                    <span>✉️ <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="1b7035627a767a76746f745b6f7e767a35787476">[email&#160;protected]</a></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="officer-card" draggable="true">
+                        <div class="officer-info">
+                            <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&h=200&fit=crop" class="officer-avatar">
+                            <div class="officer-details">
+                                <h3>Lucia Rodriguez</h3>
+                                <p>PIO Assistant</p>
+                                <div class="contact-info">
+                                    <span>📞 (312) 555-8847</span>
+                                    <span>✉️ <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d9b5f7abb6bdabb0beacbca399adbcb4b8f7bab6b4">[email&#160;protected]</a></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="officer-card" draggable="true">
+                        <div class="officer-info">
+                            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop" class="officer-avatar">
+                            <div class="officer-details">
+                                <h3>Marcus Chen</h3>
+                                <p>Media Relations</p>
+                                <div class="contact-info">
+                                    <span>📞 (312) 555-9321</span>
+                                    <span>✉️ <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4825662b202d26083c2d2529662b2725">[email&#160;protected]</a></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="officer-card" draggable="true">
+                        <div class="officer-info">
+                            <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop" class="officer-avatar">
+                            <div class="officer-details">
+                                <h3>Nina Blackwood</h3>
+                                <p>Social Media Specialist</p>
+                                <div class="contact-info">
+                                    <span>📞 (312) 555-3344</span>
+                                    <span>✉️ <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0e60206c626f6d657961616a4e7a6b636f206d6163">[email&#160;protected]</a></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="officer-group">
+                <div class="group-header">Safety Officer</div>
+                <div class="officer-cards">
+                    <div class="officer-card" draggable="true">
+                        <div class="officer-info">
+                            <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&h=200&fit=crop" class="officer-avatar">
+                            <div class="officer-details">
+                                <h3>Aisha Patel</h3>
+                                <p>Safety Lead</p>
+                                <div class="contact-info">
+                                    <span>📞 (312) 555-4567</span>
+                                    <span>✉️ <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="44256a342530212804302129256a272b29">[email&#160;protected]</a></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="officer-card" draggable="true">
+                        <div class="officer-info">
+                            <img src="https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&h=200&fit=crop" class="officer-avatar">
+                            <div class="officer-details">
+                                <h3>Derek O'Connor</h3>
+                                <p>Safety Specialist</p>
+                                <div class="contact-info">
+                                    <span>📞 (312) 555-7789</span>
+                                    <span>✉️ <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="25410b4a464a4b4b4a5765514048440b464a48">[email&#160;protected]</a></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="officer-group">
+                <div class="group-header">Liaison Officer</div>
+                <div class="officer-cards">
+                    <div class="officer-card" draggable="true">
+                        <div class="officer-info">
+                            <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop" class="officer-avatar">
+                            <div class="officer-details">
+                                <h3>Zara Hassan</h3>
+                                <p>Liaison Lead</p>
+                                <div class="contact-info">
+                                    <span>📞 (312) 555-2234</span>
+                                    <span>✉️ <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="89f3a7e1e8fafae8e7c9fdece4e8a7eae6e4">[email&#160;protected]</a></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="officer-card" draggable="true">
+                        <div class="officer-info">
+                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop" class="officer-avatar">
+                            <div class="officer-details">
+                                <h3>Liam Kowalski</h3>
+                                <p>Liaison Assistant</p>
+                                <div class="contact-info">
+                                    <span>📞 (312) 555-6678</span>
+                                    <span>✉️ <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="1a763471756d7b766971735a6e7f777b34797577">[email&#160;protected]</a></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="kanban-board">
+            <div class="kanban-lane">
+                <div class="lane-header">Operations</div>
+                <div class="lane-content"></div>
+            </div>
+            <div class="kanban-lane">
+                <div class="lane-header">Planning</div>
+                <div class="lane-content"></div>
+            </div>
+            <div class="kanban-lane">
+                <div class="lane-header">Intel/Investigations</div>
+                <div class="lane-content">
+                    <div class="swimlane-group">
+                        <div class="swimlane-header">
+                            <div class="swimlane-drop-zone">Investigative Operations Group</div>
+                        </div>
+                        <div class="swimlane-content"></div>
+                    </div>
+                    <div class="swimlane-group">
+                        <div class="swimlane-header">
+                            <div class="swimlane-drop-zone">Intelligence Group</div>
+                        </div>
+                        <div class="swimlane-content"></div>
+                    </div>
+                    <div class="swimlane-group">
+                        <div class="swimlane-header">
+                            <div class="swimlane-drop-zone">Forensic Group</div>
+                        </div>
+                        <div class="swimlane-content"></div>
+                    </div>
+                    <div class="swimlane-group">
+                        <div class="swimlane-header">
+                            <div class="swimlane-drop-zone">Missing Persons Group</div>
+                        </div>
+                        <div class="swimlane-content"></div>
+                    </div>
+                    <div class="swimlane-group">
+                        <div class="swimlane-header">
+                            <div class="swimlane-drop-zone">Mass Fatality Management Group</div>
+                        </div>
+                        <div class="swimlane-content"></div>
+                    </div>
+                    <div class="swimlane-group">
+                        <div class="swimlane-header">
+                            <div class="swimlane-drop-zone">Investigative Support Group</div>
+                        </div>
+                        <div class="swimlane-content"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="kanban-lane">
+                <div class="lane-header">Logistics</div>
+                <div class="lane-content"></div>
+            </div>
+            <div class="kanban-lane">
+                <div class="lane-header">Finance/Admin</div>
+                <div class="lane-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+        // Handle expandable/collapsible sections
+        document.querySelectorAll('.group-header').forEach(header => {
+            header.addEventListener('click', () => {
+                header.classList.toggle('collapsed');
+            });
+        });
+
+        // Function to format time
+        function formatTime(seconds) {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Timer management
+        const cardTimers = new Map();
+
+        function startTimer(card) {
+            if (cardTimers.has(card)) {
+                clearInterval(cardTimers.get(card).interval);
+            }
+
+            let seconds = 0;
+            const timerDisplay = document.createElement('div');
+            timerDisplay.className = 'timer';
+            
+            // Remove existing timer if any
+            const existingTimer = card.querySelector('.timer');
+            if (existingTimer) {
+                existingTimer.remove();
+            }
+
+            const interval = setInterval(() => {
+                seconds++;
+                timerDisplay.textContent = formatTime(seconds);
+            }, 1000);
+
+            card.insertBefore(timerDisplay, card.firstChild);
+            cardTimers.set(card, { interval, seconds });
+        }
+
+        // Function to update task counts
+        function updateTaskCounts() {
+            const officers = document.querySelectorAll('.officers-panel .officer-card');
+            officers.forEach(officer => {
+                const officerName = officer.querySelector('h3').textContent;
+                const taskCount = document.querySelectorAll('.lane-content .officer-card').length;
+                let count = 0;
+                
+                document.querySelectorAll('.lane-content .officer-card').forEach(card => {
+                    if (card.querySelector('h3').textContent === officerName) {
+                        count++;
+                    }
+                });
+
+                // Remove existing task count if present
+                const existingCount = officer.querySelector('.task-count');
+                if (existingCount) {
+                    existingCount.remove();
+                }
+
+                const taskCountElement = document.createElement('div');
+                taskCountElement.className = 'task-count';
+                taskCountElement.textContent = count;
+
+                // Add color based on count
+                if (count > 3) {
+                    taskCountElement.classList.add('red');
+                } else if (count === 2 || count === 3) {
+                    taskCountElement.classList.add('yellow');
+                } else {
+                    taskCountElement.classList.add('green');
+                }
+
+                officer.appendChild(taskCountElement);
+            });
+        }
+
+        // Function to check if officer already exists in lane
+        function isOfficerInLane(officerName, lane) {
+            // For Intel/Investigation lane, allow duplicates
+            if (lane.closest('.kanban-lane').querySelector('.lane-header').textContent === 'Intel/Investigations') {
+                return false;
+            }
+            
+            const existingCards = lane.querySelectorAll('.officer-card');
+            return Array.from(existingCards).some(card => 
+                card.querySelector('h3').textContent === officerName
+            );
+        }
+
+        // Initialize Sortable for each lane
+        document.querySelectorAll('.lane-content').forEach(lane => {
+            new Sortable(lane, {
+                group: {
+                    name: 'shared',
+                    pull: true,
+                    put: function(to, from, dragEl) {
+                        const officerName = dragEl.querySelector('h3').textContent;
+                        return !isOfficerInLane(officerName, to.el);
+                    }
+                },
+                animation: 150,
+                ghostClass: 'ghost-card',
+                onAdd: function(evt) {
+                    const card = evt.item;
+                    
+                    if (!card.querySelector('.dismiss-btn')) {
+                        const dismissBtn = document.createElement('button');
+                        dismissBtn.className = 'dismiss-btn';
+                        dismissBtn.innerHTML = '×';
+                        dismissBtn.onclick = function(e) {
+                            e.stopPropagation();
+                            card.remove();
+                            if (cardTimers.has(card)) {
+                                clearInterval(cardTimers.get(card).interval);
+                                cardTimers.delete(card);
+                            }
+                            updateTaskCounts();
+                            
+                            // Fix swimlane spacing
+                            const swimlaneContent = card.closest('.swimlane-content');
+                            if (swimlaneContent) {
+                                swimlaneContent.style.height = 'auto';
+                                const height = swimlaneContent.scrollHeight;
+                                swimlaneContent.style.height = height + 'px';
+                            }
+                        };
+                        card.appendChild(dismissBtn);
+                    }
+                    
+                    startTimer(card);
+                    updateTaskCounts();
+                },
+                onUpdate: function(evt) {
+                    startTimer(evt.item);
+                    updateTaskCounts();
+                }
+            });
+        });
+
+        // Initialize Sortable for swimlanes with drop zone on header
+        document.querySelectorAll('.swimlane-content, .swimlane-drop-zone').forEach(container => {
+            new Sortable(container, {
+                group: {
+                    name: 'shared',
+                    pull: true,
+                    put: true
+                },
+                animation: 150,
+                ghostClass: 'ghost-card',
+                onAdd: function(evt) {
+                    const card = evt.item;
+                    let swimlaneContent;
+                    
+                    if (evt.to.classList.contains('swimlane-drop-zone')) {
+                        // If dropped on header, move to content
+                        swimlaneContent = evt.to.closest('.swimlane-group').querySelector('.swimlane-content');
+                        swimlaneContent.appendChild(card);
+                        
+                        // Update height after adding card
+                        swimlaneContent.style.height = 'auto';
+                        const height = swimlaneContent.scrollHeight;
+                        swimlaneContent.style.height = height + 'px';
+                    } else {
+                        swimlaneContent = evt.to;
+                    }
+                    
+                    if (!card.querySelector('.dismiss-btn')) {
+                        const dismissBtn = document.createElement('button');
+                        dismissBtn.className = 'dismiss-btn';
+                        dismissBtn.innerHTML = '×';
+                        dismissBtn.onclick = function(e) {
+                            e.stopPropagation();
+                            card.remove();
+                            if (cardTimers.has(card)) {
+                                clearInterval(cardTimers.get(card).interval);
+                                cardTimers.delete(card);
+                            }
+                            updateTaskCounts();
+                            
+                            // Fix swimlane spacing
+                            swimlaneContent.style.height = 'auto';
+                            const height = swimlaneContent.scrollHeight;
+                            swimlaneContent.style.height = height + 'px';
+                        };
+                        card.appendChild(dismissBtn);
+                    }
+                    
+                    startTimer(card);
+                    updateTaskCounts();
+                }
+            });
+        });
+
+        // Initialize Sortable for officer cards
+        document.querySelectorAll('.officer-cards').forEach(container => {
+            new Sortable(container, {
+                group: {
+                    name: 'shared',
+                    pull: 'clone',
+                    put: false
+                },
+                sort: false,
+                animation: 150,
+                ghostClass: 'ghost-card'
+            });
+        });
+
+        // Add swimlane functionality
+        document.querySelectorAll('.swimlane-header').forEach(header => {
+            header.addEventListener('click', () => {
+                header.classList.toggle('collapsed');
+                const content = header.closest('.swimlane-group').querySelector('.swimlane-content');
+                content.classList.toggle('collapsed');
+                
+                // If expanding, ensure content is visible
+                if (!header.classList.contains('collapsed')) {
+                    content.style.height = 'auto';
+                    const height = content.scrollHeight;
+                    content.style.height = height + 'px';
+                } else {
+                    content.style.height = '0';
+                }
+            });
+        });
+
+        // Initialize task counts
+        updateTaskCounts();
+    </script>
+</body>
+</html>
